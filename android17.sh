@@ -78,16 +78,15 @@ systemd-run --user --scope --collect --quiet --unit="$unit" -p TimeoutStopSec=5 
   "$EMULATOR" -avd Android17 -no-window -no-snapshot -allow-host-audio -no-metrics 9>&- >"$LOG" 2>&1 &
 emulator_pid=$!
 
-# The window opens once Android draws its boot animation. The emulator's note for Android Studio
-# says which port it got.
+# The window opens once Android has fully started: during the boot animation its input service may
+# not be there yet, and scrcpy then fails. The emulator's note for Android Studio says its port.
 serial= ready=
 for _ in $(seq 600); do
   kill -0 "$emulator_pid" 2>/dev/null || break
   if [ -z "$serial" ]; then
     port=$(sed -n 's/^port\.serial=//p' "$RUNNING/pid_$emulator_pid.ini" 2>/dev/null)
     [ -n "$port" ] && serial=emulator-$port
-  elif "$ADB" -s "$serial" shell 'getprop init.svc.bootanim; getprop sys.boot_completed' 2>/dev/null |
-       grep -qE '^(running|1)'; then
+  elif [ "$("$ADB" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then
     ready=1
     break
   fi
@@ -101,13 +100,18 @@ fi
 
 # --no-audio: the emulator plays the sound itself. --max-size 1024: about the size it shows at on
 # a 1080p screen, so the phone spends little CPU on sending the picture.
-"$SCRCPY" --serial="$serial" --window-title="Android 17" --no-audio --max-size=1024 \
-  --video-bit-rate=16M 9>&- >"$WINDOW_LOG" 2>&1 &
-window_pid=$!
-# Whichever ends first, the phone (powered off, or crashed) or the window (closed), ends both.
-ended=
-wait -n -p ended
-status=$?
+# Whichever ends first, the phone (powered off, or crashed) or the window (closed), ends both. If the
+# window could not connect (scrcpy exits with 1), it tries twice more.
+for attempt in 1 2 3; do
+  "$SCRCPY" --serial="$serial" --window-title="Android 17" --no-audio --max-size=1024 \
+    --video-bit-rate=16M 9>&- >"$WINDOW_LOG" 2>&1 &
+  window_pid=$!
+  ended=
+  wait -n -p ended
+  status=$?
+  [ "$ended" = "$window_pid" ] && [ "$status" -eq 1 ] && [ "$attempt" -lt 3 ] || break
+  sleep 2
+done
 if [ "$ended" = "$window_pid" ] && [ "$status" -eq 2 ]; then
   # The phone went away by itself. Give it a moment to finish, to tell a crash from a power-off.
   for _ in $(seq 20); do kill -0 "$emulator_pid" 2>/dev/null || break; sleep 0.5; done

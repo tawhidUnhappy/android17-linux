@@ -38,12 +38,11 @@ Installing Google's packages means accepting the
 ./android17.sh
 ```
 
-The window opens during the boot animation, and Android is ready about 20 seconds after you start
-it. Sign in to the Play Store with your Google account and install apps as on a phone. Apps made
+The window opens once Android has started, about 20 seconds after you start it. Sign in to the Play Store with your Google account and install apps as on a phone. Apps made
 only for phone (ARM) processors work too, because the image translates them.
 
 | To | Do |
-|---|---|
+| --- | --- |
 | Go home | Drag up from the bottom edge, or middle-click |
 | See recent apps | Drag up from the bottom edge and hold |
 | Go back | Drag in from the left or right edge, or right-click |
@@ -89,7 +88,7 @@ cameras. Change one, run `./android17-setup.sh` again, and start the phone. On a
 ## Files
 
 | File | What it is |
-|---|---|
+| --- | --- |
 | `android17.sh` | Starts the phone |
 | `android17-setup.sh` | Installs it, re-applies the settings, updates |
 | `android17.ini` | The phone's settings |
