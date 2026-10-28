@@ -1,0 +1,2 @@
+# Everything the setup downloads, and the phone itself (its storage, apps, accounts and adb key).
+/data/
